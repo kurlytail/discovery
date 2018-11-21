@@ -17,6 +17,7 @@ pipeline {
                 script {
                     loadLibrary()
                     env['MAVEN_VERSION_NUMBER'] = getMavenVersion 'kurlytail/discovery/master', params.BUILD_VERSION_PREFIX, params.BUILDS_OFFSET
+                	env.PATH = env.PATH + ':/usr/local/bin'
                 	currentBuild.displayName = env['MAVEN_VERSION_NUMBER']
                 }
             }
@@ -32,10 +33,21 @@ pipeline {
      
                 checkout scm
                 withMaven {
-		            sh '/usr/local/bin/mvn --batch-mode release:update-versions -DautoVersionSubmodules=true -DdevelopmentVersion=$MAVEN_VERSION_NUMBER'
-		            sh '/usr/local/bin/mvn -s settings.xml deploy' 
-		            sh '/usr/local/bin/mvn clean heroku:deploy-war -Dheroku.appName=bst-discovery'
+		            sh 'mvn --batch-mode -s settings.xml release:update-versions -DautoVersionSubmodules=true -DdevelopmentVersion=$MAVEN_VERSION_NUMBER'
+		            sh 'mvn --batch-mode -s settings.xml deploy'
+		            sh 'mvn --batch-mode -s settings.xml dockerfile:build'
 		        }
+		        script {
+			        try {
+			            sh "docker stop discovery"
+			            sh "docker rm discovery"
+			        }
+			        catch(msg) {
+			            echo "Ignoring error $msg"
+			        }
+		        }
+
+		        sh '''docker run -d -p 10001:80 --dns \$(docker inspect -f \'{{.NetworkSettings.IPAddress}}\' dns) --dns-search brainspeedtech.com --name discovery brainspeedtech/discovery:\$MAVEN_VERSION_NUMBER'''
             }
         }
     }
