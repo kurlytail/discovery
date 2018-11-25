@@ -41,6 +41,8 @@ pipeline {
 	            sh "docker stop discovery || true"
 	            sh "docker rm discovery || true"
 		        sh '''docker run --restart unless-stopped -d -p 10001:80 --dns \$(docker inspect -f \'{{.NetworkSettings.IPAddress}}\' dns) --dns-search brainspeedtech.com --name discovery --hostname discovery.brainspeedtech.com brainspeedtech/discovery:\$MAVEN_VERSION_NUMBER'''
+		        sh 'cp nginx.conf /usr/local/etc/nginx/servers/discovery.conf'
+		        sh 'brew services restart nginx'
             }
         }
     }
